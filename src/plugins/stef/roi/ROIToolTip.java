@@ -115,23 +115,6 @@ public class ROIToolTip extends Plugin implements PluginDaemon, FocusedSequenceL
                         roiInfos.meanIntensity = 0d;
                     }
                     roiInfos.numPixels = numPixels;
-
-                    // roiInfos.numPixels = DataIteratorMath.count(it);
-                    //
-                    // if (roiInfos.numPixels > 0)
-                    // {
-                    // roiInfos.area = roiInfos.numPixels * tot;
-                    // roiInfos.minIntensity = DataIteratorMath.min(it);
-                    // roiInfos.maxIntensity = DataIteratorMath.max(it);
-                    // roiInfos.meanIntensity = DataIteratorMath.mean(it);
-                    // }
-                    // else
-                    // {
-                    // roiInfos.area = 0d;
-                    // roiInfos.minIntensity = 0d;
-                    // roiInfos.maxIntensity = 0d;
-                    // roiInfos.meanIntensity = 0d;
-                    // }
                 }
                 else
                 {
@@ -280,7 +263,6 @@ public class ROIToolTip extends Plugin implements PluginDaemon, FocusedSequenceL
         Icy.getMainInterface().removeFocusedSequenceListener(this);
     }
 
-    @Override
     public void sequenceFocused(Sequence sequence)
     {
         if (focusedSequence != sequence)
@@ -323,5 +305,11 @@ public class ROIToolTip extends Plugin implements PluginDaemon, FocusedSequenceL
     {
         if (event.getType() == ROIEventType.ROI_CHANGED)
             updateInfos();
+    }
+
+    @Override
+    public void focusChanged(Sequence sequence)
+    {
+        sequenceFocused(sequence);
     }
 }

@@ -84,13 +84,14 @@ public class ROIToolTip extends Plugin implements PluginDaemon, FocusedSequenceL
                     double sum = 0;
 
                     // faster to do all calculation in a single iteration run
-                    while (!it.isDone())
+                    while (!it.done())
                     {
                         // verify if we can abort calculation...
                         if (((numPixels & 0xFFFF) == 0) && processor.hasWaitingTasks())
                             return;
 
-                        final double value = it.getAndNext();
+                        final double value = it.get();
+                        it.next();
 
                         if (value < min)
                             min = value;

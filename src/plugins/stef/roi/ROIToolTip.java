@@ -2,7 +2,10 @@ package plugins.stef.roi;
 
 import icy.canvas.IcyCanvas;
 import icy.canvas.IcyCanvas2D;
-import icy.gui.main.FocusedSequenceListener;
+import icy.canvas.Layer;
+import icy.gui.main.FocusedViewerListener;
+import icy.gui.viewer.Viewer;
+import icy.gui.viewer.ViewerEvent;
 import icy.image.IntensityInfo;
 import icy.main.Icy;
 import icy.painter.AbstractPainter;
@@ -15,7 +18,6 @@ import icy.roi.ROIEvent.ROIEventType;
 import icy.roi.ROIListener;
 import icy.roi.ROIUtil;
 import icy.sequence.Sequence;
-import icy.sequence.SequenceEvent;
 import icy.system.thread.SingleProcessor;
 import icy.util.GraphicsUtil;
 import icy.util.StringUtil;
@@ -35,7 +37,7 @@ import java.awt.geom.Rectangle2D;
  * 
  * @author Stephane
  */
-public class ROIToolTip extends Plugin implements PluginDaemon, FocusedSequenceListener, ROIListener
+public class ROIToolTip extends Plugin implements PluginDaemon, FocusedViewerListener, ROIListener
 {
     private class ROICalculator implements Runnable
     {
@@ -184,10 +186,10 @@ public class ROIToolTip extends Plugin implements PluginDaemon, FocusedSequenceL
         focusedSequence = null;
         focusedROI = null;
 
-        sequenceFocused(getFocusedSequence());
+        viewerFocused(getFocusedViewer());
         roiFocused((focusedSequence != null) ? focusedSequence.getFocusedROI() : null);
 
-        Icy.getMainInterface().addFocusedSequenceListener(this);
+        Icy.getMainInterface().addFocusedViewerListener(this);
     }
 
     @Override
@@ -199,14 +201,21 @@ public class ROIToolTip extends Plugin implements PluginDaemon, FocusedSequenceL
     @Override
     public void stop()
     {
-        sequenceFocused(null);
-        roiFocused(null);
+        Icy.getMainInterface().removeFocusedViewerListener(this);
 
-        Icy.getMainInterface().removeFocusedSequenceListener(this);
+        viewerFocused(null);
+        roiFocused(null);
     }
 
-    public void sequenceFocused(Sequence sequence)
+    public void viewerFocused(Viewer viewer)
     {
+        final Sequence sequence;
+
+        if (viewer != null)
+            sequence = viewer.getSequence();
+        else
+            sequence = null;
+
         if (focusedSequence != sequence)
         {
             if (focusedSequence != null)
@@ -216,7 +225,18 @@ public class ROIToolTip extends Plugin implements PluginDaemon, FocusedSequenceL
             roiFocused(null);
 
             if (focusedSequence != null)
+            {
                 focusedSequence.addPainter(painter);
+                if (viewer != null)
+                {
+                    final IcyCanvas canvas = viewer.getCanvas();
+                    if (canvas != null)
+                    {
+                        final Layer layer = canvas.getLayer(painter);
+                        layer.setName("ROI Tooltip");
+                    }
+                }
+            }
         }
     }
 
@@ -237,12 +257,6 @@ public class ROIToolTip extends Plugin implements PluginDaemon, FocusedSequenceL
     }
 
     @Override
-    public void focusedSequenceChanged(SequenceEvent event)
-    {
-        // nothing to do here
-    }
-
-    @Override
     public void roiChanged(ROIEvent event)
     {
         if (event.getType() == ROIEventType.ROI_CHANGED)
@@ -250,8 +264,14 @@ public class ROIToolTip extends Plugin implements PluginDaemon, FocusedSequenceL
     }
 
     @Override
-    public void focusChanged(Sequence sequence)
+    public void focusChanged(Viewer viewer)
     {
-        sequenceFocused(sequence);
+        viewerFocused(viewer);
+    }
+
+    @Override
+    public void focusedViewerChanged(ViewerEvent event)
+    {
+        // nothing to do here
     }
 }

@@ -8,11 +8,12 @@ import icy.gui.viewer.Viewer;
 import icy.gui.viewer.ViewerEvent;
 import icy.image.IntensityInfo;
 import icy.main.Icy;
-import icy.painter.AbstractPainter;
+import icy.painter.Overlay;
 import icy.plugin.abstract_.Plugin;
 import icy.plugin.interface_.PluginDaemon;
 import icy.roi.ROI;
 import icy.roi.ROI2D;
+import icy.roi.ROI3D;
 import icy.roi.ROIEvent;
 import icy.roi.ROIEvent.ROIEventType;
 import icy.roi.ROIListener;
@@ -55,19 +56,19 @@ public class ROIToolTip extends Plugin implements PluginDaemon, FocusedViewerLis
             if ((seq != null) && (roi != null))
             {
                 intensityInfo = ROIUtil.getIntensityInfo(focusedSequence, focusedROI);
-                perimeter = roi.getPerimeter();
-                volume = roi.getVolume();
+                perimeter = Math.round(roi.getPerimeter());
+                volume = Math.round(roi.getVolume());
             }
 
-            painter.changed();
+            overlay.painterChanged();
         }
     }
 
-    private class HintPainter extends AbstractPainter
+    private class HintOverlay extends Overlay
     {
-        public HintPainter()
+        public HintOverlay()
         {
-            super();
+            super("ROI tip", OverlayPriority.TOOLTIP_LOW);
         }
 
         @Override
@@ -83,7 +84,7 @@ public class ROIToolTip extends Plugin implements PluginDaemon, FocusedViewerLis
                     // search in selected ROI
                     final ROI2D selectedRoi = sequence.getSelectedROI2D();
 
-                    // assume this is a focused roi
+                    // assume this is a focused ROI
                     if ((selectedRoi != null) && (selectedRoi.hasSelectedPoint()))
                         roi = selectedRoi;
                 }
@@ -95,36 +96,38 @@ public class ROIToolTip extends Plugin implements PluginDaemon, FocusedViewerLis
                     if (roi instanceof ROI2D)
                     {
                         final Rectangle2D bounds = ((ROI2D) roi).getBounds2D();
-                        final String updatingMark;
                         String text;
 
-                        if (processor.isProcessing())
-                            updatingMark = "*";
-                        else
-                            updatingMark = "";
+                        // if (processor.isProcessing())
+                        // updatingMark = "*";
+                        // else
+                        // updatingMark = "";
 
                         // draw position and size in the tooltip
-                        text = "Position    X=" + StringUtil.toString(bounds.getX(), 1) + "  Y="
+                        text = "Position    X:" + StringUtil.toString(bounds.getX(), 1) + "  Y:"
                                 + StringUtil.toString(bounds.getY(), 1);
                         text += "\n";
-                        text += "Dimension   W=" + StringUtil.toString(bounds.getWidth(), 1) + "  H="
+                        text += "Dimension  W:" + StringUtil.toString(bounds.getWidth(), 1) + "  H:"
                                 + StringUtil.toString(bounds.getHeight(), 1);
                         text += "\n";
 
-                        text += "Perimeter: " + StringUtil.toString(perimeter) + updatingMark;
-                        text += "  Volume: " + StringUtil.toString(volume, 1) + updatingMark;
+                        text += "Perimeter: " + sequence.calculateSize(perimeter, roi.getDimension() - 1, 5) + " ("
+                                + StringUtil.toString(perimeter) + " pixels)";
+                        text += "\n";
+                        text += "Surface: " + sequence.calculateSize(volume, roi.getDimension(), 5) + " ("
+                                + StringUtil.toString(volume, 1) + " pixels)";
                         text += "\n";
                         text += "Intensity";
-                        text += "  min: " + StringUtil.toString(intensityInfo.minIntensity, 1) + updatingMark;
-                        text += "  max: " + StringUtil.toString(intensityInfo.maxIntensity, 1) + updatingMark;
-                        text += "  mean: " + StringUtil.toString(intensityInfo.meanIntensity, 1) + updatingMark;
+                        text += "  min: " + StringUtil.toString(intensityInfo.minIntensity, 1);
+                        text += "  max: " + StringUtil.toString(intensityInfo.maxIntensity, 1);
+                        text += "  mean: " + StringUtil.toString(intensityInfo.meanIntensity, 1);
 
                         final Graphics2D g2 = (Graphics2D) g.create();
 
                         g2.transform(cnv2d.getInverseTransform());
                         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
-                                RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-                        g2.setFont(new Font("Arial", Font.PLAIN, 12));
+                                RenderingHints.VALUE_TEXT_ANTIALIAS_OFF);
+                        g2.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
 
                         // default position
                         Point pos = cnv2d.getMousePosition(true);
@@ -143,7 +146,7 @@ public class ROIToolTip extends Plugin implements PluginDaemon, FocusedViewerLis
 
                         g2.dispose();
                     }
-                    else
+                    else if (roi instanceof ROI3D)
                     {
                         // not yet supported
 
@@ -153,10 +156,11 @@ public class ROIToolTip extends Plugin implements PluginDaemon, FocusedViewerLis
         }
     }
 
+    Viewer focusedViewer;
     Sequence focusedSequence;
     ROI focusedROI;
 
-    final HintPainter painter;
+    final HintOverlay overlay;
     final SingleProcessor processor;
 
     /**
@@ -170,7 +174,7 @@ public class ROIToolTip extends Plugin implements PluginDaemon, FocusedViewerLis
     {
         super();
 
-        painter = new HintPainter();
+        overlay = new HintOverlay();
         processor = new SingleProcessor(true);
         intensityInfo = new IntensityInfo();
     }
@@ -183,6 +187,7 @@ public class ROIToolTip extends Plugin implements PluginDaemon, FocusedViewerLis
     @Override
     public void init()
     {
+        focusedViewer = null;
         focusedSequence = null;
         focusedROI = null;
 
@@ -209,34 +214,54 @@ public class ROIToolTip extends Plugin implements PluginDaemon, FocusedViewerLis
 
     public void viewerFocused(Viewer viewer)
     {
-        final Sequence sequence;
+        if (focusedViewer != viewer)
+        {
+            float alpha = 1f;
 
-        if (viewer != null)
-            sequence = viewer.getSequence();
-        else
-            sequence = null;
+            if (focusedViewer != null)
+            {
+                final IcyCanvas canvas = focusedViewer.getCanvas();
+                if (canvas != null)
+                {
+                    final Layer layer = canvas.getLayer(overlay);
+                    alpha = layer.getAlpha();
+                }
+            }
 
+            focusedViewer = viewer;
+
+            final Sequence sequence;
+            if (focusedViewer != null)
+                sequence = focusedViewer.getSequence();
+            else
+                sequence = null;
+
+            sequenceFocused(sequence);
+
+            if (focusedViewer != null)
+            {
+                final IcyCanvas canvas = focusedViewer.getCanvas();
+                if (canvas != null)
+                {
+                    final Layer layer = canvas.getLayer(overlay);
+                    layer.setAlpha(alpha);
+                }
+            }
+        }
+    }
+
+    public void sequenceFocused(Sequence sequence)
+    {
         if (focusedSequence != sequence)
         {
             if (focusedSequence != null)
-                focusedSequence.removePainter(painter);
+                focusedSequence.removePainter(overlay);
 
             focusedSequence = sequence;
             roiFocused(null);
 
             if (focusedSequence != null)
-            {
-                focusedSequence.addPainter(painter);
-                if (viewer != null)
-                {
-                    final IcyCanvas canvas = viewer.getCanvas();
-                    if (canvas != null)
-                    {
-                        final Layer layer = canvas.getLayer(painter);
-                        layer.setName("ROI Tooltip");
-                    }
-                }
-            }
+                focusedSequence.addPainter(overlay);
         }
     }
 

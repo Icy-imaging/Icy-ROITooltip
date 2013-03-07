@@ -104,17 +104,17 @@ public class ROIToolTip extends Plugin implements PluginDaemon, FocusedViewerLis
                         // updatingMark = "";
 
                         // draw position and size in the tooltip
-                        text = "Position    X:" + StringUtil.toString(bounds.getX(), 1) + "  Y:"
+                        text = "Position   X: " + StringUtil.toString(bounds.getX(), 1) + "  Y: "
                                 + StringUtil.toString(bounds.getY(), 1);
                         text += "\n";
-                        text += "Dimension  W:" + StringUtil.toString(bounds.getWidth(), 1) + "  H:"
+                        text += "Dimension  W: " + StringUtil.toString(bounds.getWidth(), 1) + "  H: "
                                 + StringUtil.toString(bounds.getHeight(), 1);
                         text += "\n";
 
-                        text += "Perimeter: " + sequence.calculateSize(perimeter, roi.getDimension() - 1, 5) + " ("
+                        text += "Perimeter  " + sequence.calculateSize(perimeter, roi.getDimension() - 1, 5) + " ("
                                 + StringUtil.toString(perimeter) + " pixels)";
                         text += "\n";
-                        text += "Surface: " + sequence.calculateSize(volume, roi.getDimension(), 5) + " ("
+                        text += "Surface    " + sequence.calculateSize(volume, roi.getDimension(), 5) + " ("
                                 + StringUtil.toString(volume, 1) + " pixels)";
                         text += "\n";
                         text += "Intensity";

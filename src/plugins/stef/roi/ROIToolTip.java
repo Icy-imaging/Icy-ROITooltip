@@ -3,12 +3,13 @@ package plugins.stef.roi;
 import icy.canvas.IcyCanvas;
 import icy.canvas.IcyCanvas2D;
 import icy.canvas.Layer;
-import icy.gui.main.ActiveViewerListener;
+import icy.gui.main.FocusedViewerListener;
 import icy.gui.viewer.Viewer;
 import icy.gui.viewer.ViewerEvent;
 import icy.image.IntensityInfo;
 import icy.main.Icy;
 import icy.painter.Overlay;
+import icy.painter.Painter;
 import icy.plugin.abstract_.Plugin;
 import icy.plugin.interface_.PluginDaemon;
 import icy.roi.ROI;
@@ -38,7 +39,7 @@ import java.awt.geom.Rectangle2D;
  * 
  * @author Stephane
  */
-public class ROIToolTip extends Plugin implements PluginDaemon, ActiveViewerListener, ROIListener
+public class ROIToolTip extends Plugin implements PluginDaemon, FocusedViewerListener, ROIListener
 {
     private class ROICalculator implements Runnable
     {
@@ -53,11 +54,18 @@ public class ROIToolTip extends Plugin implements PluginDaemon, ActiveViewerList
             final Sequence seq = activeSequence;
             final ROI roi = focusedROI;
 
-            if ((seq != null) && (roi != null))
+            try
             {
-                intensityInfo = ROIUtil.getIntensityInfo(activeSequence, focusedROI);
-                perimeter = Math.round(roi.getPerimeter());
-                volume = Math.round(roi.getVolume());
+                if ((seq != null) && (roi != null))
+                {
+                    intensityInfo = ROIUtil.getIntensityInfo(activeSequence, focusedROI);
+                    perimeter = Math.round(roi.getPerimeter());
+                    volume = Math.round(roi.getVolume());
+                }
+            }
+            catch (Exception e)
+            {
+                // async process, ROI can change in the meantime
             }
 
             overlay.painterChanged();
@@ -116,11 +124,15 @@ public class ROIToolTip extends Plugin implements PluginDaemon, ActiveViewerList
                         text += "\n";
                         text += "Surface    " + sequence.calculateSize(volume, roi.getDimension(), 5) + " ("
                                 + StringUtil.toString(volume, 1) + " pixels)";
-                        text += "\n";
-                        text += "Intensity";
-                        text += "  min: " + StringUtil.toString(intensityInfo.minIntensity, 1);
-                        text += "  max: " + StringUtil.toString(intensityInfo.maxIntensity, 1);
-                        text += "  mean: " + StringUtil.toString(intensityInfo.meanIntensity, 1);
+                        
+                        if (intensityInfo != null)
+                        {
+                            text += "\n";
+                            text += "Intensity";
+                            text += "  min: " + StringUtil.toString(intensityInfo.minIntensity, 1);
+                            text += "  max: " + StringUtil.toString(intensityInfo.maxIntensity, 1);
+                            text += "  mean: " + StringUtil.toString(intensityInfo.meanIntensity, 1);
+                        }
 
                         final Graphics2D g2 = (Graphics2D) g.create();
 
@@ -175,8 +187,8 @@ public class ROIToolTip extends Plugin implements PluginDaemon, ActiveViewerList
         super();
 
         overlay = new HintOverlay();
-        processor = new SingleProcessor(true);
         intensityInfo = new IntensityInfo();
+        processor = new SingleProcessor(true);
     }
 
     void updateInfos()
@@ -191,10 +203,10 @@ public class ROIToolTip extends Plugin implements PluginDaemon, ActiveViewerList
         activeSequence = null;
         focusedROI = null;
 
-        viewerActivated(getActiveViewer());
+        focusChanged(getFocusedViewer());
         roiFocused((activeSequence != null) ? activeSequence.getFocusedROI() : null);
 
-        Icy.getMainInterface().addActiveViewerListener(this);
+        Icy.getMainInterface().addFocusedViewerListener(this);
     }
 
     @Override
@@ -206,9 +218,9 @@ public class ROIToolTip extends Plugin implements PluginDaemon, ActiveViewerList
     @Override
     public void stop()
     {
-        Icy.getMainInterface().removeActiveViewerListener(this);
+        Icy.getMainInterface().removeFocusedViewerListener(this);
 
-        viewerActivated(null);
+        focusChanged(null);
         roiFocused(null);
     }
 
@@ -217,13 +229,13 @@ public class ROIToolTip extends Plugin implements PluginDaemon, ActiveViewerList
         if (activeSequence != sequence)
         {
             if (activeSequence != null)
-                activeSequence.removeOverlay(overlay);
+                activeSequence.removePainter(overlay);
 
             activeSequence = sequence;
             roiFocused(null);
 
             if (activeSequence != null)
-                activeSequence.addOverlay(overlay);
+                activeSequence.addPainter(overlay);
         }
     }
 
@@ -251,8 +263,9 @@ public class ROIToolTip extends Plugin implements PluginDaemon, ActiveViewerList
     }
 
     @Override
-    public void viewerActivated(Viewer viewer)
+    public void focusChanged(Viewer viewer)
     {
+
         if (activeViewer != viewer)
         {
             float alpha = 1f;
@@ -262,7 +275,7 @@ public class ROIToolTip extends Plugin implements PluginDaemon, ActiveViewerList
                 final IcyCanvas canvas = activeViewer.getCanvas();
                 if (canvas != null)
                 {
-                    final Layer layer = canvas.getLayer(overlay);
+                    final Layer layer = canvas.getLayer((Painter) overlay);
                     if (layer != null)
                         alpha = layer.getAlpha();
                 }
@@ -283,7 +296,7 @@ public class ROIToolTip extends Plugin implements PluginDaemon, ActiveViewerList
                 final IcyCanvas canvas = activeViewer.getCanvas();
                 if (canvas != null)
                 {
-                    final Layer layer = canvas.getLayer(overlay);
+                    final Layer layer = canvas.getLayer((Painter) overlay);
                     layer.setAlpha(alpha);
                 }
             }
@@ -291,14 +304,9 @@ public class ROIToolTip extends Plugin implements PluginDaemon, ActiveViewerList
     }
 
     @Override
-    public void viewerDeactivated(Viewer viewer)
+    public void focusedViewerChanged(ViewerEvent event)
     {
-
-    }
-
-    @Override
-    public void activeViewerChanged(ViewerEvent event)
-    {
+        // TODO Auto-generated method stub
 
     }
 }

@@ -123,27 +123,29 @@ public class ROIToolTip extends Plugin implements PluginDaemon, ActiveViewerList
                                 + StringUtil.toString(bounds.getHeight(), 1);
                         text += "\n";
 
-                        text += "Interior: " + StringUtil.toString(points) + " px   Contour: "
-                                + StringUtil.toString(contourPoints) + " px";
+                        text += "Interior   " + StringUtil.toString(points) + " pixels";
                         text += "\n";
+                        text += "Contour    " + StringUtil.toString(contourPoints) + " pixels";
+                        text += "\n";
+                        
                         if (!StringUtil.isEmpty(perimeter))
                         {
-                            text += "Perimeter:  " + perimeter;
+                            text += "Perimeter  " + perimeter;
                             text += "\n";
                         }
                         if (!StringUtil.isEmpty(area))
                         {
-                            text += "Area:  " + area;
+                            text += "Area       " + area;
                             text += "\n";
                         }
                         if (!StringUtil.isEmpty(surfaceArea))
                         {
-                            text += "Surface area:  " + surfaceArea;
+                            text += "Surf. area " + surfaceArea;
                             text += "\n";
                         }
                         if (!StringUtil.isEmpty(volume))
                         {
-                            text += "Volume:  " + volume;
+                            text += "Volume     " + volume;
                             text += "\n";
                         }
 

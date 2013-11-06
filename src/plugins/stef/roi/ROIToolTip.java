@@ -126,13 +126,13 @@ public class ROIToolTip extends Plugin implements PluginDaemon, ActiveViewerList
                         // updatingMark = "";
 
                         // draw roi informations in the tooltip
-                        text.add("Position X   " + StringUtil.toString(bounds.getX(), 1));
-                        text.add("Dimension W  " + StringUtil.toString(bounds.getWidth(), 1));
-                        text.add("Interior     " + StringUtil.toString(points) + " px");
+                        text.add("Position X " + StringUtil.toString(bounds.getX(), 1));
+                        text.add("Size X     " + StringUtil.toString(bounds.getWidth(), 1));
+                        text.add("Interior   " + StringUtil.toString(points) + " px");
                         if (!StringUtil.isEmpty(perimeter))
-                        text.add("Perimeter    " + perimeter);
+                            text.add("Perimeter  " + perimeter);
                         if (!StringUtil.isEmpty(surfaceArea))
-                        text.add("Surface area " + surfaceArea);
+                            text.add("Surf. area " + surfaceArea);
 
                         int maxLength = 0;
                         for (String t : text)
@@ -143,26 +143,26 @@ public class ROIToolTip extends Plugin implements PluginDaemon, ActiveViewerList
                         int ind = 0;
 
                         tooltipText = enlarge(text.get(ind++), maxLength);
-                        tooltipText += "Position Y   " + StringUtil.toString(bounds.getY(), 1) + "\n";
+                        tooltipText += "Position Y " + StringUtil.toString(bounds.getY(), 1) + "\n";
                         tooltipText += enlarge(text.get(ind++), maxLength);
-                        tooltipText += "Dimension H  " + StringUtil.toString(bounds.getHeight(), 1) + "\n";
+                        tooltipText += "Size Y     " + StringUtil.toString(bounds.getHeight(), 1) + "\n";
                         tooltipText += enlarge(text.get(ind++), maxLength);
-                        tooltipText += "Contour      " + StringUtil.toString(contourPoints) + " px" + "\n";
+                        tooltipText += "Contour    " + StringUtil.toString(contourPoints) + " px" + "\n";
 
                         if (!StringUtil.isEmpty(perimeter))
                         {
                             tooltipText += enlarge(text.get(ind++), maxLength);
-                            tooltipText += "Area         " + area + "\n";
+                            tooltipText += "Area       " + area + "\n";
                         }
                         if (!StringUtil.isEmpty(surfaceArea))
                         {
                             tooltipText += enlarge(text.get(ind++), maxLength);
-                            tooltipText += "Volume       " + volume + "\n";
+                            tooltipText += "Volume     " + volume + "\n";
                         }
 
                         if (intensityInfo != null)
                         {
-                            tooltipText += "Intensity    ";
+                            tooltipText += "Intensity  ";
                             tooltipText += "min: " + StringUtil.toString(intensityInfo.minIntensity, 1) + "  ";
                             tooltipText += "max: " + StringUtil.toString(intensityInfo.maxIntensity, 1) + "  ";
                             tooltipText += "mean: " + StringUtil.toString(intensityInfo.meanIntensity, 1);

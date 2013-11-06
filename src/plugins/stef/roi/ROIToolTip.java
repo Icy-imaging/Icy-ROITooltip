@@ -3,13 +3,13 @@ package plugins.stef.roi;
 import icy.canvas.IcyCanvas;
 import icy.canvas.IcyCanvas2D;
 import icy.canvas.Layer;
-import icy.gui.main.FocusedViewerListener;
+import icy.gui.main.ActiveViewerListener;
 import icy.gui.viewer.Viewer;
 import icy.gui.viewer.ViewerEvent;
 import icy.image.IntensityInfo;
 import icy.main.Icy;
+import icy.math.MathUtil;
 import icy.painter.Overlay;
-import icy.painter.Painter;
 import icy.plugin.abstract_.Plugin;
 import icy.plugin.interface_.PluginDaemon;
 import icy.roi.ROI;
@@ -39,7 +39,7 @@ import java.awt.geom.Rectangle2D;
  * 
  * @author Stephane
  */
-public class ROIToolTip extends Plugin implements PluginDaemon, FocusedViewerListener, ROIListener
+public class ROIToolTip extends Plugin implements PluginDaemon, ActiveViewerListener, ROIListener
 {
     private class ROICalculator implements Runnable
     {
@@ -59,8 +59,12 @@ public class ROIToolTip extends Plugin implements PluginDaemon, FocusedViewerLis
                 if ((seq != null) && (roi != null))
                 {
                     intensityInfo = ROIUtil.getIntensityInfo(activeSequence, focusedROI);
-                    perimeter = Math.round(roi.getPerimeter());
-                    volume = Math.round(roi.getVolume());
+                    points = MathUtil.roundSignificant(roi.getNumberOfPoints(), 2, true);
+                    contourPoints = MathUtil.roundSignificant(roi.getNumberOfContourPoints(), 2, true);
+                    perimeter = ROIUtil.getPerimeter(activeSequence, roi);
+                    area = ROIUtil.getArea(activeSequence, roi);
+                    surfaceArea = ROIUtil.getSurfaceArea(activeSequence, roi);
+                    volume = ROIUtil.getVolume(activeSequence, roi);
                 }
             }
             catch (Exception e)
@@ -119,12 +123,30 @@ public class ROIToolTip extends Plugin implements PluginDaemon, FocusedViewerLis
                                 + StringUtil.toString(bounds.getHeight(), 1);
                         text += "\n";
 
-                        text += "Perimeter  " + sequence.calculateSize(perimeter, roi.getDimension() - 1, 5) + " ("
-                                + StringUtil.toString(perimeter) + " pixels)";
+                        text += "Interior: " + StringUtil.toString(points) + " px   Contour: "
+                                + StringUtil.toString(contourPoints) + " px";
                         text += "\n";
-                        text += "Surface    " + sequence.calculateSize(volume, roi.getDimension(), 5) + " ("
-                                + StringUtil.toString(volume, 1) + " pixels)";
-                        
+                        if (!StringUtil.isEmpty(perimeter))
+                        {
+                            text += "Perimeter:  " + perimeter;
+                            text += "\n";
+                        }
+                        if (!StringUtil.isEmpty(area))
+                        {
+                            text += "Area:  " + area;
+                            text += "\n";
+                        }
+                        if (!StringUtil.isEmpty(surfaceArea))
+                        {
+                            text += "Surface area:  " + surfaceArea;
+                            text += "\n";
+                        }
+                        if (!StringUtil.isEmpty(volume))
+                        {
+                            text += "Volume:  " + volume;
+                            text += "\n";
+                        }
+
                         if (intensityInfo != null)
                         {
                             text += "\n";
@@ -179,8 +201,12 @@ public class ROIToolTip extends Plugin implements PluginDaemon, FocusedViewerLis
      * ROI calculated infos
      */
     IntensityInfo intensityInfo;
-    double perimeter;
-    double volume;
+    double points;
+    double contourPoints;
+    String perimeter;
+    String area;
+    String surfaceArea;
+    String volume;
 
     public ROIToolTip()
     {
@@ -193,7 +219,7 @@ public class ROIToolTip extends Plugin implements PluginDaemon, FocusedViewerLis
 
     void updateInfos()
     {
-        processor.addTask(new ROICalculator());
+        processor.submit(new ROICalculator());
     }
 
     @Override
@@ -203,10 +229,10 @@ public class ROIToolTip extends Plugin implements PluginDaemon, FocusedViewerLis
         activeSequence = null;
         focusedROI = null;
 
-        focusChanged(getFocusedViewer());
+        viewerActivated(getActiveViewer());
         roiFocused((activeSequence != null) ? activeSequence.getFocusedROI() : null);
 
-        Icy.getMainInterface().addFocusedViewerListener(this);
+        Icy.getMainInterface().addActiveViewerListener(this);
     }
 
     @Override
@@ -218,9 +244,9 @@ public class ROIToolTip extends Plugin implements PluginDaemon, FocusedViewerLis
     @Override
     public void stop()
     {
-        Icy.getMainInterface().removeFocusedViewerListener(this);
+        Icy.getMainInterface().removeActiveViewerListener(this);
 
-        focusChanged(null);
+        viewerActivated(null);
         roiFocused(null);
     }
 
@@ -229,13 +255,13 @@ public class ROIToolTip extends Plugin implements PluginDaemon, FocusedViewerLis
         if (activeSequence != sequence)
         {
             if (activeSequence != null)
-                activeSequence.removePainter(overlay);
+                activeSequence.removeOverlay(overlay);
 
             activeSequence = sequence;
             roiFocused(null);
 
             if (activeSequence != null)
-                activeSequence.addPainter(overlay);
+                activeSequence.addOverlay(overlay);
         }
     }
 
@@ -263,9 +289,8 @@ public class ROIToolTip extends Plugin implements PluginDaemon, FocusedViewerLis
     }
 
     @Override
-    public void focusChanged(Viewer viewer)
+    public void viewerActivated(Viewer viewer)
     {
-
         if (activeViewer != viewer)
         {
             float alpha = 1f;
@@ -275,7 +300,7 @@ public class ROIToolTip extends Plugin implements PluginDaemon, FocusedViewerLis
                 final IcyCanvas canvas = activeViewer.getCanvas();
                 if (canvas != null)
                 {
-                    final Layer layer = canvas.getLayer((Painter) overlay);
+                    final Layer layer = canvas.getLayer(overlay);
                     if (layer != null)
                         alpha = layer.getAlpha();
                 }
@@ -296,7 +321,7 @@ public class ROIToolTip extends Plugin implements PluginDaemon, FocusedViewerLis
                 final IcyCanvas canvas = activeViewer.getCanvas();
                 if (canvas != null)
                 {
-                    final Layer layer = canvas.getLayer((Painter) overlay);
+                    final Layer layer = canvas.getLayer(overlay);
                     layer.setAlpha(alpha);
                 }
             }
@@ -304,9 +329,14 @@ public class ROIToolTip extends Plugin implements PluginDaemon, FocusedViewerLis
     }
 
     @Override
-    public void focusedViewerChanged(ViewerEvent event)
+    public void viewerDeactivated(Viewer viewer)
     {
-        // TODO Auto-generated method stub
+        // nothing here
+    }
 
+    @Override
+    public void activeViewerChanged(ViewerEvent event)
+    {
+        // nothing here
     }
 }

@@ -32,6 +32,8 @@ import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.geom.Rectangle2D;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * ROI Tooltip plugin.<br>
@@ -83,6 +85,14 @@ public class ROIToolTip extends Plugin implements PluginDaemon, ActiveViewerList
             super("ROI tip", OverlayPriority.TOOLTIP_LOW);
         }
 
+        private String enlarge(String text, int len)
+        {
+            String result = text;
+            while (result.length() < len)
+                result += ' ';
+            return result;
+        }
+
         @Override
         public void paint(Graphics2D g, Sequence sequence, IcyCanvas canvas)
         {
@@ -108,54 +118,54 @@ public class ROIToolTip extends Plugin implements PluginDaemon, ActiveViewerList
                     if (roi instanceof ROI2D)
                     {
                         final Rectangle2D bounds = ((ROI2D) roi).getBounds2D();
-                        String text;
+                        final List<String> text = new ArrayList<String>();
 
                         // if (processor.isProcessing())
                         // updatingMark = "*";
                         // else
                         // updatingMark = "";
 
-                        // draw position and size in the tooltip
-                        text = "Position   X: " + StringUtil.toString(bounds.getX(), 1) + "  Y: "
-                                + StringUtil.toString(bounds.getY(), 1);
-                        text += "\n";
-                        text += "Dimension  W: " + StringUtil.toString(bounds.getWidth(), 1) + "  H: "
-                                + StringUtil.toString(bounds.getHeight(), 1);
-                        text += "\n";
+                        // draw roi informations in the tooltip
+                        text.add("Position X   " + StringUtil.toString(bounds.getX(), 1));
+                        text.add("Dimension W  " + StringUtil.toString(bounds.getWidth(), 1));
+                        text.add("Interior     " + StringUtil.toString(points) + " px");
+                        if (!StringUtil.isEmpty(perimeter))
+                        text.add("Perimeter    " + perimeter);
+                        if (!StringUtil.isEmpty(surfaceArea))
+                        text.add("Surface area " + surfaceArea);
 
-                        text += "Interior   " + StringUtil.toString(points) + " pixels";
-                        text += "\n";
-                        text += "Contour    " + StringUtil.toString(contourPoints) + " pixels";
-                        text += "\n";
-                        
+                        int maxLength = 0;
+                        for (String t : text)
+                            maxLength = Math.max(maxLength, t.length());
+                        maxLength += 2;
+
+                        String tooltipText = "";
+                        int ind = 0;
+
+                        tooltipText = enlarge(text.get(ind++), maxLength);
+                        tooltipText += "Position Y   " + StringUtil.toString(bounds.getY(), 1) + "\n";
+                        tooltipText += enlarge(text.get(ind++), maxLength);
+                        tooltipText += "Dimension H  " + StringUtil.toString(bounds.getHeight(), 1) + "\n";
+                        tooltipText += enlarge(text.get(ind++), maxLength);
+                        tooltipText += "Contour      " + StringUtil.toString(contourPoints) + " px" + "\n";
+
                         if (!StringUtil.isEmpty(perimeter))
                         {
-                            text += "Perimeter  " + perimeter;
-                            text += "\n";
-                        }
-                        if (!StringUtil.isEmpty(area))
-                        {
-                            text += "Area       " + area;
-                            text += "\n";
+                            tooltipText += enlarge(text.get(ind++), maxLength);
+                            tooltipText += "Area         " + area + "\n";
                         }
                         if (!StringUtil.isEmpty(surfaceArea))
                         {
-                            text += "Surf. area " + surfaceArea;
-                            text += "\n";
-                        }
-                        if (!StringUtil.isEmpty(volume))
-                        {
-                            text += "Volume     " + volume;
-                            text += "\n";
+                            tooltipText += enlarge(text.get(ind++), maxLength);
+                            tooltipText += "Volume       " + volume + "\n";
                         }
 
                         if (intensityInfo != null)
                         {
-                            text += "\n";
-                            text += "Intensity";
-                            text += "  min: " + StringUtil.toString(intensityInfo.minIntensity, 1);
-                            text += "  max: " + StringUtil.toString(intensityInfo.maxIntensity, 1);
-                            text += "  mean: " + StringUtil.toString(intensityInfo.meanIntensity, 1);
+                            tooltipText += "Intensity    ";
+                            tooltipText += "min: " + StringUtil.toString(intensityInfo.minIntensity, 1) + "  ";
+                            tooltipText += "max: " + StringUtil.toString(intensityInfo.maxIntensity, 1) + "  ";
+                            tooltipText += "mean: " + StringUtil.toString(intensityInfo.meanIntensity, 1);
                         }
 
                         final Graphics2D g2 = (Graphics2D) g.create();
@@ -173,12 +183,12 @@ public class ROIToolTip extends Plugin implements PluginDaemon, ActiveViewerList
                         // canvas visible region
                         final Rectangle region = cnv2d.getCanvasVisibleRect();
                         // hint size
-                        final Dimension hintSize = GraphicsUtil.getHintSize(g2, text);
+                        final Dimension hintSize = GraphicsUtil.getHintSize(g2, tooltipText);
 
                         // get best hint position to be visible
                         pos = GraphicsUtil.getBestPosition(pos, hintSize, region, 8, 8);
 
-                        GraphicsUtil.drawHint(g2, text, pos.x, pos.y, Color.gray, Color.white);
+                        GraphicsUtil.drawHint(g2, tooltipText, pos.x, pos.y, Color.gray, Color.white);
 
                         g2.dispose();
                     }

@@ -119,6 +119,8 @@ public class ROIToolTip extends Plugin implements PluginDaemon, ActiveViewerList
                     {
                         final Rectangle2D bounds = ((ROI2D) roi).getBounds2D();
                         final List<String> text = new ArrayList<String>();
+                        final String perim = perimeter;
+                        final String surfArea = surfaceArea;
 
                         // if (processor.isProcessing())
                         // updatingMark = "*";
@@ -129,10 +131,10 @@ public class ROIToolTip extends Plugin implements PluginDaemon, ActiveViewerList
                         text.add("Position X " + StringUtil.toString(bounds.getX(), 1));
                         text.add("Size X     " + StringUtil.toString(bounds.getWidth(), 1));
                         text.add("Interior   " + StringUtil.toString(points) + " px");
-                        if (!StringUtil.isEmpty(perimeter))
-                            text.add("Perimeter  " + perimeter);
-                        if (!StringUtil.isEmpty(surfaceArea))
-                            text.add("Surf. area " + surfaceArea);
+                        if (!StringUtil.isEmpty(perim))
+                            text.add("Perimeter  " + perim);
+                        if (!StringUtil.isEmpty(surfArea))
+                            text.add("Surf. area " + surfArea);
 
                         int maxLength = 0;
                         for (String t : text)
@@ -149,12 +151,12 @@ public class ROIToolTip extends Plugin implements PluginDaemon, ActiveViewerList
                         tooltipText += enlarge(text.get(ind++), maxLength);
                         tooltipText += "Contour    " + StringUtil.toString(contourPoints) + " px" + "\n";
 
-                        if (!StringUtil.isEmpty(perimeter))
+                        if (!StringUtil.isEmpty(perim))
                         {
                             tooltipText += enlarge(text.get(ind++), maxLength);
                             tooltipText += "Area       " + area + "\n";
                         }
-                        if (!StringUtil.isEmpty(surfaceArea))
+                        if (!StringUtil.isEmpty(surfArea))
                         {
                             tooltipText += enlarge(text.get(ind++), maxLength);
                             tooltipText += "Volume     " + volume + "\n";
